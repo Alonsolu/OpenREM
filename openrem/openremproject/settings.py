@@ -7,9 +7,11 @@ from __future__ import absolute_import
 # for relative imports by default.
 
 # Debug is now set to false - you can turn it back on in local_settings if you need to
-DEBUG = False
+DEBUG = True  # Temporarily set to True for development
 TEMPLATE_DEBUG = DEBUG
 
+# Default ALLOWED_HOSTS for development
+ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
 # Celery settings
 
@@ -28,10 +30,7 @@ import os
 ROOT_PROJECT = os.path.join(os.path.split(__file__)[0],"..")
 
 #to get url in template http://stackoverflow.com/questions/2882490/get-the-current-url-within-a-django-template
-from django.conf.global_settings import TEMPLATE_CONTEXT_PROCESSORS as TCP
-TEMPLATE_CONTEXT_PROCESSORS = TCP + (
-    'django.core.context_processors.request',
-)
+# Template context processors moved to TEMPLATES setting in Django 1.8+
 
 # **********************************************************************
 #
@@ -95,36 +94,40 @@ STATICFILES_FINDERS = (
 # URL of the login page
 LOGIN_URL = '/login/'
 
-#
-# SECRET_KEY moved to local_settings.py
-#
+# Temporary SECRET_KEY for development - will be overridden by local_settings.py
+SECRET_KEY = 'temporary-dev-key-will-be-overridden-by-local-settings'
 
-# List of callables that know how to import templates from various sources.
-TEMPLATE_LOADERS = (
-    'django.template.loaders.filesystem.Loader',
-    'django.template.loaders.app_directories.Loader',
-#     'django.template.loaders.eggs.Loader',
-)
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
 
-MIDDLEWARE_CLASSES = (
-    'django.middleware.common.CommonMiddleware',
+MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
-    # Uncomment the next line for simple clickjacking protection:
-    # 'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'pagination.middleware.PaginationMiddleware',
-)
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # 'pagination.middleware.PaginationMiddleware',  # Removed - incompatible with Django 3.2
+]
 
 ROOT_URLCONF = 'openremproject.urls'
 
 # Python dotted path to the WSGI application used by Django's runserver.
 WSGI_APPLICATION = 'openremproject.wsgi.application'
-
-TEMPLATE_DIRS = (
-#    "rmphysics/templates",
-)
 
 INSTALLED_APPS = (
     'django.contrib.auth',
@@ -139,9 +142,9 @@ INSTALLED_APPS = (
     # 'django.contrib.admindocs',
     'remapp',
     'django_filters',
-    'pagination',
+    # 'pagination',  # Removed - incompatible with Django 3.2
     'django.contrib.humanize',
-    'south',
+    # 'south',  # Removed - incompatible with Django 3.2 (built-in migrations since 1.7)
 )
 
 # A sample logging configuration. The only tangible logging
@@ -174,12 +177,9 @@ LOGGING = {
 }
 
 try:
-    LOCAL_SETTINGS
-except NameError:
+    from .local_settings import *
+except ImportError:
     try:
         from openremproject.local_settings import *
     except ImportError:
-        try:
-            from openrem.openremproject.local_settings import *
-        except ImportError:
-            pass
+        pass

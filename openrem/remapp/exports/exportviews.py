@@ -35,7 +35,8 @@ os.environ['DJANGO_SETTINGS_MODULE'] = 'openremproject.settings'
 import json
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse
+from django.http import HttpResponse, FileResponse
+from django.urls import reverse
 
 @csrf_exempt
 @login_required
@@ -126,8 +127,7 @@ def export(request):
     :param request: Used to get user group.
     """
     import pkg_resources # part of setuptools
-    from django.template import RequestContext  
-    from django.shortcuts import render_to_response
+    from django.shortcuts import render
     from remapp.models import Exports
     from remapp.exports.exportcsv import exportCT2excel
 
@@ -149,9 +149,16 @@ def export(request):
         admin['adminperm'] = True
 
 
-    if 'task_id' in request.session.keys() and request.session['task_id']:
-        task_id = request.session['task_id']
-    return render_to_response('remapp/exports.html', locals(), context_instance=RequestContext(request))
+    task_id = request.session.get('task_id')
+    context = {
+        'exptsks': exptsks,
+        'current': current,
+        'complete': complete,
+        'errors': errors,
+        'admin': admin,
+        'task_id': task_id,
+    }
+    return render(request, 'remapp/exports.html', context)
 
 
 @login_required
@@ -168,19 +175,17 @@ def download(request, file_name):
     """
     import mimetypes
     import os
-    from django.core.servers.basehttp import FileWrapper
     from django.utils.encoding import smart_str
     from django.shortcuts import redirect
-    from openremproject.settings import MEDIA_ROOT
+    from django.conf import settings
 
     if request.user.groups.filter(name="exportgroup") or request.user.groups.filter(name="admingroup"):
-        file_path = os.path.join(MEDIA_ROOT, file_name)
-        file_wrapper = FileWrapper(file(file_path,'rb'))
-        file_mimetype = mimetypes.guess_type(file_path)
-        response = HttpResponse(file_wrapper, content_type=file_mimetype )
-        response['X-Sendfile'] = file_path
-        response['Content-Length'] = os.stat(file_path).st_size
-        response['Content-Disposition'] = 'attachment; filename=%s' % smart_str(file_name) 
+        file_path = os.path.join(settings.MEDIA_ROOT, file_name)
+        if not os.path.exists(file_path):
+            return redirect('/openrem/export/')
+        file_mimetype = mimetypes.guess_type(file_path)[0] or 'application/octet-stream'
+        response = FileResponse(open(file_path, 'rb'), content_type=file_mimetype, as_attachment=True)
+        response['Content-Disposition'] = 'attachment; filename=%s' % smart_str(file_name)
         return response
     else:
         return redirect('/openrem/export/')
@@ -195,9 +200,8 @@ def deletefile(request):
     """
     import os, sys
     from django.http import HttpResponseRedirect
-    from django.core.urlresolvers import reverse
     from django.contrib import messages
-    from openremproject.settings import MEDIA_ROOT
+    from django.conf import settings
     from remapp.models import Exports
     from remapp.exports import exportviews
     
@@ -214,7 +218,7 @@ def deletefile(request):
             except:
                 messages.error(request, "Unexpected error - please contact an administrator: {0}".format(sys.exc_info()[0]))
     
-    return HttpResponseRedirect(reverse(exportviews.export))
+    return HttpResponseRedirect(reverse('export'))
 
 @login_required
 def export_abort(request, pk):

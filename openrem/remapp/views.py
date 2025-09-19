@@ -37,9 +37,7 @@ from django.contrib.auth.models import User, Group, Permission
 from django.contrib.contenttypes.models import ContentType
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render, redirect, get_object_or_404
-from django.template import RequestContext
-from django.shortcuts import render_to_response
-from django.core.urlresolvers import reverse, reverse_lazy
+from django.urls import reverse, reverse_lazy
 import json
 from django.views.decorators.csrf import csrf_exempt
 import datetime
@@ -52,8 +50,7 @@ def logout_page(request):
     Log users out and re-direct them to the main page.
     """
     logout(request)
-    return HttpResponseRedirect('/openrem/')
-
+    return HttpResponseRedirect(reverse('home'))
 
 @login_required
 def rf_summary_list_filter(request):
@@ -71,12 +68,7 @@ def rf_summary_list_filter(request):
         admin['exportperm'] = True
     if request.user.groups.filter(name="admingroup"):
         admin['adminperm'] = True
-
-    return render_to_response(
-        'remapp/rffiltered.html',
-        {'filter': f, 'admin':admin},
-        context_instance=RequestContext(request)
-        )
+    return render(request, 'remapp/rffiltered.html', {'filter': f, 'admin': admin})
 
 @login_required
 def ct_summary_list_filter(request):
@@ -95,12 +87,7 @@ def ct_summary_list_filter(request):
         admin['exportperm'] = True
     if request.user.groups.filter(name="admingroup"):
         admin['adminperm'] = True
-    
-    return render_to_response(
-        'remapp/ctfiltered.html',
-        {'filter': f, 'admin':admin},
-        context_instance=RequestContext(request)
-        )
+    return render(request, 'remapp/ctfiltered.html', {'filter': f, 'admin': admin})
 
 @login_required
 def mg_summary_list_filter(request):
@@ -121,12 +108,7 @@ def mg_summary_list_filter(request):
         admin['exportperm'] = True
     if request.user.groups.filter(name="admingroup"):
         admin['adminperm'] = True
-
-    return render_to_response(
-        'remapp/mgfiltered.html',
-        {'filter': f, 'admin':admin},
-        context_instance=RequestContext(request)
-        )
+    return render(request, 'remapp/mgfiltered.html', {'filter': f, 'admin': admin})
 
 
 def openrem_home(request):
@@ -209,21 +191,19 @@ def study_delete(request, pk, template_name='remapp/study_confirm_delete.html'):
     if request.method=='POST':
         if request.user.groups.filter(name="admingroup"):
             study.delete()
-        return redirect("/openrem/")
+        return redirect(reverse('home'))
 
     if request.user.groups.filter(name="admingroup"):
         return render(request, template_name, {'exam':study})
 
-    return redirect("/openrem/")
+    return redirect(reverse('home'))
 
 import os, sys, csv
-from django.shortcuts import render_to_response
-from django.template import RequestContext
 from django.http import HttpResponseRedirect
-from django.core.urlresolvers import reverse
+from django.urls import reverse
 from django.contrib import messages
 
-from openremproject.settings import MEDIA_ROOT
+from django.conf import settings
 from remapp.models import Size_upload
 from remapp.forms import SizeUploadForm
 
@@ -241,7 +221,7 @@ def size_upload(request):
             newcsv.save()
 
             # Redirect to the document list after POST
-            return HttpResponseRedirect("/openrem/admin/sizeprocess/{0}/".format(newcsv.id))
+            return HttpResponseRedirect(reverse('size_process', args=[newcsv.id]))
     else:
         form = SizeUploadForm() # A empty, unbound form
 
@@ -258,11 +238,7 @@ def size_upload(request):
         admin['adminperm'] = True
 
     # Render list page with the documents and the form
-    return render_to_response(
-        'remapp/sizeupload.html',
-        {'form': form, 'admin':admin},
-        context_instance=RequestContext(request)
-    )
+    return render(request, 'remapp/sizeupload.html', {'form': form, 'admin': admin})
 
 from remapp.forms import SizeHeadersForm
 
@@ -286,7 +262,7 @@ def size_process(request, *args, **kwargs):
             
             if not csvrecord.sizefile:
                 messages.error(request, "File to be processed doesn't exist. Do you wish to try again?")
-                return HttpResponseRedirect("/openrem/admin/sizeupload")
+                return HttpResponseRedirect(reverse('size_upload'))
             
             csvrecord.height_field = request.POST['height_field']
             csvrecord.weight_field = request.POST['weight_field']
@@ -296,17 +272,16 @@ def size_process(request, *args, **kwargs):
 
             job = websizeimport.delay(csv_pk = kwargs['pk'])
 
-            return HttpResponseRedirect("/openrem/admin/sizeimports")
+            return HttpResponseRedirect(reverse('size_imports'))
 
         else:
             messages.error(request, "Duplicate column header selection. Each field must have a different header.")
-            return HttpResponseRedirect("/openrem/admin/sizeprocess/{0}/".format(kwargs['pk']))
-            
+            return HttpResponseRedirect(reverse('size_process', args=[kwargs['pk']]))
 
     else:
     
         csvrecord = Size_upload.objects.all().filter(id__exact = kwargs['pk'])
-        with open(os.path.join(MEDIA_ROOT, csvrecord[0].sizefile.name), 'rb') as csvfile:
+        with open(os.path.join(settings.MEDIA_ROOT, csvrecord[0].sizefile.name), 'rb') as csvfile:
             try:
                 dialect = csv.Sniffer().sniff(csvfile.read(1024))
                 csvfile.seek(0)
@@ -320,15 +295,15 @@ def size_process(request, *args, **kwargs):
                     csvfile.seek(0)
                     messages.error(request, "Doesn't appear to have a header row. First row: {0}. The uploaded file has been deleted.".format(next(csvfile)))
                     csvrecord[0].sizefile.delete()
-                    return HttpResponseRedirect("/openrem/admin/sizeupload")
+                    return HttpResponseRedirect(reverse('size_upload'))
             except csv.Error as e:
                 messages.error(request, "Doesn't appear to be a csv file. Error({0}). The uploaded file has been deleted.".format(e))
                 csvrecord[0].sizefile.delete()
-                return HttpResponseRedirect("/openrem/admin/sizeupload")
+                return HttpResponseRedirect(reverse('size_upload'))
             except:
                 messages.error(request, "Unexpected error - please contact an administrator: {0}.".format(sys.exc_info()[0]))
                 csvrecord[0].sizefile.delete()
-                return HttpResponseRedirect("/openrem/admin/sizeupload")
+                return HttpResponseRedirect(reverse('size_upload'))
 
     try:
         vers = pkg_resources.require("openrem")[0].version
@@ -341,11 +316,7 @@ def size_process(request, *args, **kwargs):
     if request.user.groups.filter(name="admingroup"):
         admin['adminperm'] = True
 
-    return render_to_response(
-        'remapp/sizeprocess.html',
-        {'form':form, 'csvid':kwargs['pk'], 'admin':admin},
-        context_instance=RequestContext(request)
-    )
+    return render(request, 'remapp/sizeprocess.html', {'form': form, 'csvid': kwargs['pk'], 'admin': admin})
 
 def size_imports(request, *args, **kwargs):
     """Lists patient size imports in the web interface
@@ -354,8 +325,8 @@ def size_imports(request, *args, **kwargs):
     """
     import os
     import pkg_resources # part of setuptools
-    from django.template import RequestContext  
-    from django.shortcuts import render_to_response
+    from django.http import HttpResponse
+    from django.shortcuts import render
     from remapp.models import Size_upload
 
     imports = Size_upload.objects.all().order_by('-import_date')
@@ -376,11 +347,7 @@ def size_imports(request, *args, **kwargs):
         admin['adminperm'] = True
 
 
-    return render_to_response(
-        'remapp/sizeimports.html',
-        {'admin': admin, 'current': current, 'complete': complete, 'errors': errors},
-        context_instance = RequestContext(request)
-    )
+    return render(request, 'remapp/sizeimports.html', {'admin': admin, 'current': current, 'complete': complete, 'errors': errors})
     
 
 @csrf_exempt
@@ -392,7 +359,7 @@ def size_delete(request):
     :type request: POST
     """
     from django.http import HttpResponseRedirect
-    from django.core.urlresolvers import reverse
+    from django.urls import reverse
     from django.contrib import messages
     from remapp.models import Size_upload
 
@@ -408,7 +375,7 @@ def size_delete(request):
             except:
                 messages.error(request, "Unexpected error - please contact an administrator: {0}".format(sys.exc_info()[0]))
 
-    return HttpResponseRedirect(reverse(size_imports))
+    return HttpResponseRedirect(reverse('size_imports'))
 
 @login_required
 def size_abort(request, pk):

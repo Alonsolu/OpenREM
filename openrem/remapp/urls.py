@@ -28,65 +28,60 @@
 
 """
 
-from django.conf.urls import patterns, include, url
+from django.urls import re_path
 from django_filters.views import FilterView
 from django.contrib.auth.decorators import login_required
 from django.views.generic import ListView, DetailView
 from remapp.models import Accumulated_projection_xray_dose, General_study_module_attributes
+from remapp import views
+from remapp.exports import exportviews
+# from remapp.exports import xlsx
 
 
-urlpatterns = patterns('remapp.views',
-
-    url(r'^$',
-        'openrem_home'),
-
-    url(r'^rf/$',
-        'rf_summary_list_filter'),
-    url(r'^rf/(?P<pk>\d+)/$',
+urlpatterns = [
+    re_path(r'^$', views.openrem_home, name='home'),
+    
+    re_path(r'^rf/$', views.rf_summary_list_filter, name='rf_summary_list'),
+    re_path(r'^rf/(?P<pk>\d+)/$',
         login_required(DetailView.as_view(
             model=General_study_module_attributes,
             template_name='remapp/rfdetail.html'))),
 
-    url(r'^ct/$',
-        'ct_summary_list_filter'),
-    url(r'^ct/(?P<pk>\d+)/$',
+    re_path(r'^ct/$', views.ct_summary_list_filter, name='ct_summary_list'),
+    re_path(r'^ct/(?P<pk>\d+)/$',
         login_required(DetailView.as_view(
             model=General_study_module_attributes,
             template_name='remapp/ctdetail.html'))),
 
-    url(r'^ct$',
-        'ct_summary_list_filter'),
+    re_path(r'^ct$', views.ct_summary_list_filter),
 
-
-    url(r'^mg/$',
-        'mg_summary_list_filter'),
-    url(r'^mg/(?P<pk>\d+)/$',
+    re_path(r'^mg/$', views.mg_summary_list_filter, name='mg_summary_list'),
+    re_path(r'^mg/(?P<pk>\d+)/$',
         login_required(DetailView.as_view(
             model=General_study_module_attributes,
             template_name='remapp/mgdetail.html'))),
 
-    url(r'^delete/(?P<pk>\d+)$', 'study_delete', name='study_delete'),
-    url(r'^admin/sizeupload$', 'size_upload', name='size_upload'),
-    url(r'^admin/sizeprocess/(?P<pk>\d+)/$', 'size_process', name='size_process'),
-    url(r'^admin/sizeimports', 'size_imports', name='size_imports'),
-    url(r'^admin/sizedelete', 'size_delete', name='size_delete'),
-    url(r'^admin/sizeimport/abort/(?P<pk>\d+)$', 'size_abort'),
-)
+    re_path(r'^delete/(?P<pk>\d+)$', views.study_delete, name='study_delete'),
+    re_path(r'^admin/sizeupload$', views.size_upload, name='size_upload'),
+    re_path(r'^admin/sizeprocess/(?P<pk>\d+)/$', views.size_process, name='size_process'),
+    re_path(r'^admin/sizeimports$', views.size_imports, name='size_imports'),
+    re_path(r'^admin/sizedelete$', views.size_delete, name='size_delete'),
+    re_path(r'^admin/sizeimport/abort/(?P<pk>\d+)$', views.size_abort, name='size_abort'),
+]
 
-urlpatterns += patterns('remapp.exports.exportviews',
-    url(r'^export/$', 'export'),
-    url(r'^exportctcsv1/$', 'ctcsv1'),
-    url(r'^exportctxlsx1/$', 'ctxlsx1'),
-    url(r'^exportflcsv1/$', 'flcsv1'),
-    url(r'^exportmgcsv1/$', 'mgcsv1'),
-    url(r'^exportmgnhsbsp/$', 'mgnhsbsp'),
-    url(r'^download/(?P<file_name>.+)$', 'download'),
-    url(r'^deletefile/$', 'deletefile'),
-    url(r'^export/abort/(?P<pk>\d+)$', 'export_abort'),
-)
+urlpatterns += [
+    re_path(r'^export/$', exportviews.export, name='export'),
+    re_path(r'^exportctcsv1/$', exportviews.ctcsv1, name='export_ctcsv1'),
+    re_path(r'^exportctxlsx1/$', exportviews.ctxlsx1, name='export_ctxlsx1'),
+    re_path(r'^exportflcsv1/$', exportviews.flcsv1, name='export_flcsv1'),
+    re_path(r'^exportmgcsv1/$', exportviews.mgcsv1, name='export_mgcsv1'),
+    re_path(r'^exportmgnhsbsp/$', exportviews.mgnhsbsp, name='export_mgnhsbsp'),
+    re_path(r'^download/(?P<file_name>.+)$', exportviews.download, name='download'),
+    re_path(r'^deletefile/$', exportviews.deletefile, name='deletefile'),
+    re_path(r'^export/abort/(?P<pk>\d+)$', exportviews.export_abort, name='export_abort'),
+]
 
-urlpatterns += patterns('remapp.exports',
-    url(r'^xlsx/openrem/ct/',
-        'xlsx.ctxlsx'),
-)
+# urlpatterns += [
+#     re_path(r'^xlsx/openrem/ct/', xlsx.ctxlsx, name='xlsx_ctxlsx'),
+# ]
 

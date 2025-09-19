@@ -1,14 +1,14 @@
-from django.conf.urls import patterns, include, url
-
-# Uncomment the next two lines to enable the admin:
+from django.urls import include, re_path
 from django.contrib import admin
+from django.contrib.auth import views as auth_views
+from remapp import views
+
 admin.autodiscover()
 
-urlpatterns = patterns('',
-    url(r'^openrem/', include('remapp.urls')),
-    url(r'^admin/', include(admin.site.urls)),
+urlpatterns = [
+    re_path(r'^openrem/', include('remapp.urls')),
+    re_path(r'^admin/', admin.site.urls),
     # Login / logout.
-    url(r'^login/$', 'django.contrib.auth.views.login'),
-    url(r'^logout/$', 'remapp.views.logout_page'),
-
-)
+    re_path(r'^login/$', auth_views.LoginView.as_view()),
+    re_path(r'^logout/$', views.logout_page),
+]
